@@ -31,25 +31,6 @@ const double delta_time = 1.0 / fps;
 const int scw = 800;
 const int sch = 600;
 
-void gravity(void *ctx) {
-    ParticleSystem *sys = (ParticleSystem *)ctx;
-    for (size_t i = 0; i < sys->particles.count; i++) {
-        double m = sys->particles.items[i].m;
-        sys->particles.items[i].f[1] += -9.81 * m;
-    }
-}
-
-void drag(void *ctx) {
-    ParticleSystem *sys = (ParticleSystem *)ctx;
-    for (size_t i = 0; i < sys->particles.count; i++) {
-        double d[2];
-        d[0] = sys->particles.items[i].v[0] * -0.10;
-        d[1] = sys->particles.items[i].v[1] * -0.10;
-        sys->particles.items[i].f[0] += d[0];
-        sys->particles.items[i].f[1] += d[1];
-    }
-}
-
 void collision(void *ctx) {
     ParticleSystem *sys = (ParticleSystem *)ctx;
     for (size_t i = 0; i < sys->particles.count; i++) {
@@ -71,10 +52,8 @@ float magnitude(float v[2]) {
 int
 main(void)
 {
-    ParticleSystem sys = particle_system_new(10000, scw, sch, 10);
+    ParticleSystem sys = particle_system_new(10000, scw, sch, 10, -9.81, 0.01);
 
-    da_append(&sys.forces, gravity);
-    da_append(&sys.forces, drag);
     da_append(&sys.forces, collision);
 
     InitWindow(scw, sch, "physical-modelling-particles");
@@ -88,7 +67,7 @@ main(void)
         ClearBackground(BLACK);
 
         for (size_t i = 0; i < sys.particles.count; i++) {
-            DrawPixelV(*(Vector2 *)sys.particles.items[i].x, BLUE);
+            DrawPixelV(*(Vector2 *)sys.particles.items[i].x, RAYWHITE);
         }
 
         EndDrawing();

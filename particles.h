@@ -29,13 +29,15 @@ typedef struct {
 
 typedef struct {
     float t;    // simulation clock
+    float gravity;
+    float drag;
     float *dbuf;
     float *statebuf;
     ParticleList particles;
     ForceList forces;
 } ParticleSystem;
 
-ParticleSystem particle_system_new(int count, int width, int height, float mass);
+ParticleSystem particle_system_new(int count, int width, int height, float mass, float gravity, float drag);
 void particle_system_delete(ParticleSystem *sys);
 
 #endif // PARTICLES_H
@@ -147,15 +149,30 @@ euler_step(ParticleSystem *sys, float delta_time)
 void
 calculate_forces(ParticleSystem *sys)
 {
+    // gravity
+    for (size_t i = 0; i < sys->particles.count; i++) {
+        double m = sys->particles.items[i].m;
+        sys->particles.items[i].f[1] += sys->gravity * m;
+    }
+
+    // drag
+    for (size_t i = 0; i < sys->particles.count; i++) {
+        sys->particles.items[i].f[0] += sys->particles.items[i].v[0] * sys->drag;
+        sys->particles.items[i].f[1] += sys->particles.items[i].v[1] * sys->drag;
+    }
+
+    // additional forces
     for (size_t i = 0; i < sys->forces.count; i++)
         sys->forces.items[i](sys);
 }
 
 ParticleSystem
-particle_system_new(int count, int width, int height, float mass)
+particle_system_new(int count, int width, int height, float mass, float gravity, float drag)
 {
     ParticleSystem sys;
     sys.t = 0.0;
+    sys.gravity = gravity;
+    sys.drag = drag;
     da_init(&sys.forces);
     da_init(&sys.particles);
     da_resize(&sys.particles, count);

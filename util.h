@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdlib.h>
+
 #define UTIL_ASSERT(c) \
     do { \
         if (!(c)) { \
@@ -39,16 +41,16 @@ void util_log(const char *tag, const char *fmt, ...);
 #endif // UTIL_H
 
 
-// #define UTIL_IMPLEMENTATION
 #ifdef UTIL_IMPLEMENTATION
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 void
 util_log(const char *tag, const char *fmt, ...)
 {
-    if (tag) fprintf(stdout, "[%s] ", tag);
+    if (tag) fprintf(stderr, "[%s] ", tag);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);

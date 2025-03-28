@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 
-gcc -o particles main.c -lm -lraylib -lGL
+gcc -o particles particles.c main.c -lm -lraylib -lGL
+

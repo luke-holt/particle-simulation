@@ -46,5 +46,12 @@ static inline pvec_t pvec_normalize(pvec_t v) {
     return pvec_scale(v, 1.0 / pvec_mag(v));
 }
 
+static inline pvec_t pvec_dot(pvec_t a, pvec_t b) {
+    return (pvec_t){ a.vec[0] * b.vec[0], a.vec[1] * b.vec[1] };
+}
+
+static inline pvec_t pvec_negate(pvec_t v) {
+    return pvec_scale(v, -1.0);
+}
 
 #endif // PVEC_H

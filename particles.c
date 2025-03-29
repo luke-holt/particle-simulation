@@ -205,13 +205,17 @@ collisions(pstate_t *psys, float delta_time, int *p, int *q, float *coltime)
 void
 handle_collision(pstate_t *psys, float coltime, int p, int q)
 {
-    // v2 = (1 + e)vcom - ev1
-    // vcom = (vq + vq) / 2 <- for equal mass
-    pvec_t vcom = pvec_scale(pvec_add(psys->v[p], psys->v[q]), 0.5 * (1 + psys->config.cr));
-    pvec_t evp = pvec_scale(psys->v[p], psys->config.cr);
-    pvec_t evq = pvec_scale(psys->v[q], psys->config.cr);
-    psys->v[p] = pvec_sub(vcom, evp);
-    psys->v[q] = pvec_sub(vcom, evq);
+    // assuming equal mass...
+    // v1' = v1 - ((v1-v2) . (x1-x2)) / mag(x1-x2)^2 * (x1-x2)
+
+    pvec_t dx = pvec_sub(psys->x[p], psys->x[q]);
+    pvec_t dv = pvec_sub(psys->v[p], psys->v[q]);
+    float dsq = pvec_magsq(dx);
+
+    pvec_t vec = pvec_scale(pvec_dot(pvec_dot(dx, dv), dx), 1.0 / dsq);
+
+    psys->v[p] = pvec_sub(psys->v[p], vec);
+    psys->v[q] = pvec_sub(psys->v[q], pvec_negate(vec));
 
     // nudge particles apart if still colliding
     if (pcol(psys->config.radius*2, psys->x[q], psys->x[p])) {

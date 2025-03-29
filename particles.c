@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <stdbool.h>
 #include <float.h>
 
@@ -13,42 +12,13 @@
 #define PASSERT assert
 #endif
 
-static inline void pvec_accum(pvec_t *accum, pvec_t vec) {
-    accum->vec[0] += vec.vec[0];
-    accum->vec[1] += vec.vec[1];
-}
-static inline void pvec_accum_many(int count, pvec_t *accum, const pvec_t *vec) {
-    while (count--) pvec_accum(accum++, *(vec++));
-}
-static inline pvec_t pvec_scale(pvec_t vec, float d) {
-    vec.vec[0] *= d;
-    vec.vec[1] *= d;
-    return vec;
-}
-static inline void pvec_scale_many(int count, pvec_t *out, pvec_t *in, float d) {
-    while (count--) *(out++) = pvec_scale(*(in++), d);
-}
 static inline pvec_t pvec_rand(pvec_t range) {
     return (pvec_t) {
         ((float)rand() / (float)RAND_MAX) * range.vec[0],
         ((float)rand() / (float)RAND_MAX) * range.vec[1],
     };
 }
-static inline pvec_t pvec_sub(pvec_t a, pvec_t b) {
-    return (pvec_t){ a.vec[0]-b.vec[0], a.vec[1]-b.vec[1] };
-}
-static inline pvec_t pvec_add(pvec_t a, pvec_t b) {
-    return (pvec_t){ a.vec[0]+b.vec[0], a.vec[1]+b.vec[1] };
-}
-static inline float pvec_magsq(pvec_t v) {
-    return v.vec[0]*v.vec[0]+v.vec[1]*v.vec[1];
-}
-static inline float pvec_mag(pvec_t v) {
-    return sqrtf(pvec_magsq(v));
-}
-static inline pvec_t pvec_normalize(pvec_t v) {
-    return pvec_scale(v, 1.0 / pvec_mag(v));
-}
+
 // particle collision
 static inline bool pcol(float r, pvec_t xa, pvec_t xb) {
     return (r * r) > pvec_magsq(pvec_sub(xa, xb));

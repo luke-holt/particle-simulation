@@ -3,9 +3,7 @@
 
 #include <stddef.h>
 
-#define DIMS (2)
-
-typedef struct { float vec[DIMS]; } pvec_t;
+#include "pvec.h"
 
 typedef struct {
     float gravity; // system gravity (m/s^2)

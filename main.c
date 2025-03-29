@@ -9,8 +9,6 @@
 #define UTIL_IMPLEMENTATION
 #include "util.h"
 
-#include "vec.h"
-
 /*
 
 f = ma
@@ -27,7 +25,7 @@ phase space equation of motion (2 dimensions)
 
 */
 
-#define GRAVITY 0 // (-9.81)
+#define GRAVITY (-98.1)
 #define DRAG (0.10)
 
 const int fps = 60;
@@ -35,43 +33,28 @@ const float delta_time = 1.0 / fps;
 const int scw = 800;
 const int sch = 600;
 
-void wall_collisions(void *ctx) {
-    pstate_t *sys = (pstate_t *)ctx;
-    for (size_t i = 0; i < sys->count; i++) {
-        if ((sys->x[i].vec[0] - sys->config.radius) <= 0.0 && sys->v[i].vec[0] < 0.0 ||
-            (sys->x[i].vec[0] + sys->config.radius) >= scw && sys->v[i].vec[0] > 0.0) {
-            sys->v[i].vec[0] *= -1.0 * sys->config.cr;
-        }
-        if ((sys->x[i].vec[1] - sys->config.radius) <= 0.0 && sys->v[i].vec[1] < 0.0 ||
-            (sys->x[i].vec[1] + sys->config.radius) >= sch && sys->v[i].vec[1] > 0.0) {
-            sys->v[i].vec[1] *= -1.0 * sys->config.cr;
-        }
-    }
-}
-
 void spring(pstate_t *sys) {
     for (size_t i = 0; i < sys->count; i++) {
         for (size_t j = 0; j < sys->count; j++) {
             if (i == j) continue;
 
-            float dx[2], dv[2], dxmag, f[2];
-            dx[0] = sys->x[i].vec[0] - sys->x[j].vec[0];
-            dx[1] = sys->x[i].vec[1] - sys->x[j].vec[1];
-            dv[0] = sys->v[i].vec[0] - sys->v[j].vec[0];
-            dv[1] = sys->v[i].vec[1] - sys->v[j].vec[1];
-
-            dxmag = mag(as_vec2(dx));
+            pvec_t dx = pvec_sub(sys->x[i], sys->x[j]);
+            pvec_t dv = pvec_sub(sys->v[i], sys->v[j]);
+            pvec_t dxnorm = pvec_normalize(dx);
+            float dxmag = pvec_mag(dx);
 
             float ks = 1;
             float kd = 1;
 
-            f[0] = -(ks * (dxmag - 30) + kd * dv[0] * dx[0] / dxmag) * dx[0] / dxmag;
-            f[1] = -(ks * (dxmag - 30) + kd * dv[1] * dx[1] / dxmag) * dx[1] / dxmag;
-
-            sys->f[i].vec[0] += f[0];
-            sys->f[i].vec[1] += f[1];
-            sys->f[j].vec[0] -= f[0];
-            sys->f[j].vec[1] -= f[1];
+            // -(ks * (dxmag - 30) + kd * dv * dx / dxmag) * dx / dxmag
+            float a = ks * (dxmag - 30);
+            float b = kd / dxmag;
+            pvec_t f = {
+                -(ks * (dxmag - 30) + kd * dv.vec[0] * dxnorm.vec[0]) * dxnorm.vec[0],
+                -(ks * (dxmag - 30) + kd * dv.vec[1] * dxnorm.vec[1]) * dxnorm.vec[1],
+            };
+            pvec_accum(&sys->f[i], f);
+            pvec_accum(&sys->f[j], pvec_scale(f, -1.0));
         }
     }
 }
@@ -83,22 +66,22 @@ void mouse_coupling(pstate_t *sys) {
     Vector2 mouse_x = GetMousePosition();
     Vector2 mouse_v = GetMouseDelta();
 
-    float dx[2], dv[2], dxmag, f[2];
-    dx[0] = sys->x[0].vec[0] - mouse_x.x;
-    dx[1] = sys->x[0].vec[1] - mouse_x.y;
-    dv[0] = sys->v[0].vec[0] - mouse_v.x;
-    dv[1] = sys->v[0].vec[1] - mouse_v.y;
-
-    dxmag = mag(as_vec2(dx));
+    pvec_t dx = pvec_sub(sys->x[0], *(pvec_t *)&mouse_x);
+    pvec_t dv = pvec_sub(sys->v[0], *(pvec_t *)&mouse_v);
+    pvec_t dxnorm = pvec_normalize(dx);
+    float dxmag = pvec_mag(dx);
 
     float ks = 20;
     float kd = 1;
 
-    f[0] = -(ks * (dxmag - 30) + kd * dv[0] * dx[0] / dxmag) * dx[0] / dxmag;
-    f[1] = -(ks * (dxmag - 30) + kd * dv[1] * dx[1] / dxmag) * dx[1] / dxmag;
-
-    sys->f[0].vec[0] += f[0];
-    sys->f[0].vec[1] += f[1];
+    // -(ks * (dxmag - 30) + kd * dv * dx / dxmag) * dx / dxmag
+    float a = ks * (dxmag - 30);
+    float b = kd / dxmag;
+    pvec_t f = {
+        -(ks * (dxmag - 30) + kd * dv.vec[0] * dxnorm.vec[0]) * dxnorm.vec[0],
+        -(ks * (dxmag - 30) + kd * dv.vec[1] * dxnorm.vec[1]) * dxnorm.vec[1],
+    };
+    pvec_accum(&sys->f[0], f);
 }
 
 
@@ -113,14 +96,13 @@ main(void)
         .gravity = GRAVITY,
         .invm = 1.0 / 10.0,
         .m = 10.0,
-        .radius = 3.0,
+        .radius = 5,
     };
     pstate_t sys;
     particles_init(&sys, config, 10);
 
-    // particles_register_cb(&sys, wall_collisions);
     particles_register_cb(&sys, mouse_coupling);
-    particles_register_cb(&sys, spring);
+    // particles_register_cb(&sys, spring);
 
     InitWindow(scw, sch, "physical-modelling-particles");
     SetTargetFPS(60);
@@ -132,6 +114,7 @@ main(void)
         BeginDrawing();
         ClearBackground(BLACK);
 
+#if 0
         for (size_t i = 0; i < sys.count; i++) {
             for (size_t j = 0; j < sys.count; j++) {
                 if (i == j) continue;
@@ -142,6 +125,8 @@ main(void)
                 );
             }
         }
+#endif
+
         for (size_t i = 0; i < sys.count; i++) {
             // DrawPixelV(*(Vector2 *)sys.particles.items[i].x, RAYWHITE);
             DrawCircleV(*(Vector2 *)&sys.x[i], sys.config.radius, RAYWHITE);

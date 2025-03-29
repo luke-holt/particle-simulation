@@ -9,23 +9,7 @@
 #define UTIL_IMPLEMENTATION
 #include "util.h"
 
-/*
-
-f = ma
-xdot2 = f/m <- second derivative of position
-to reduce to first order, introduce velocity v = xdot1
-
-vdot1 = f/m, xdot1 = v
-
-phase space equation of motion (2 dimensions)
-
-[xdot1_1, xdot1_2, vdot1_1, vdot1_2]
-=
-[v1, v2, f1/m, f2/m]
-
-*/
-
-#define GRAVITY (-98.1)
+#define GRAVITY (-981.)
 #define DRAG (0.10)
 
 const int fps = 60;
@@ -50,8 +34,8 @@ void spring(pstate_t *sys) {
             float a = ks * (dxmag - 30);
             float b = kd / dxmag;
             pvec_t f = {
-                -(ks * (dxmag - 30) + kd * dv.vec[0] * dxnorm.vec[0]) * dxnorm.vec[0],
-                -(ks * (dxmag - 30) + kd * dv.vec[1] * dxnorm.vec[1]) * dxnorm.vec[1],
+                -(ks * (dxmag - 30) + kd * dv.x * dxnorm.x) * dxnorm.x,
+                -(ks * (dxmag - 30) + kd * dv.y * dxnorm.y) * dxnorm.y,
             };
             pvec_accum(&sys->f[i], f);
             pvec_accum(&sys->f[j], pvec_scale(f, -1.0));
@@ -66,22 +50,24 @@ void mouse_coupling(pstate_t *sys) {
     Vector2 mouse_x = GetMousePosition();
     Vector2 mouse_v = GetMouseDelta();
 
-    pvec_t dx = pvec_sub(sys->x[0], *(pvec_t *)&mouse_x);
-    pvec_t dv = pvec_sub(sys->v[0], *(pvec_t *)&mouse_v);
-    pvec_t dxnorm = pvec_normalize(dx);
-    float dxmag = pvec_mag(dx);
+    for (size_t i = 0; i < sys->count; i++) {
+        pvec_t dx = pvec_sub(sys->x[i], *(pvec_t *)&mouse_x);
+        pvec_t dv = pvec_sub(sys->v[i], *(pvec_t *)&mouse_v);
+        pvec_t dxnorm = pvec_normalize(dx);
+        float dxmag = pvec_mag(dx);
 
-    float ks = 20;
-    float kd = 1;
+        float ks = 20;
+        float kd = 1;
 
-    // -(ks * (dxmag - 30) + kd * dv * dx / dxmag) * dx / dxmag
-    float a = ks * (dxmag - 30);
-    float b = kd / dxmag;
-    pvec_t f = {
-        -(ks * (dxmag - 30) + kd * dv.vec[0] * dxnorm.vec[0]) * dxnorm.vec[0],
-        -(ks * (dxmag - 30) + kd * dv.vec[1] * dxnorm.vec[1]) * dxnorm.vec[1],
-    };
-    pvec_accum(&sys->f[0], f);
+        // -(ks * (dxmag - 30) + kd * dv * dx / dxmag) * dx / dxmag
+        float a = ks * (dxmag - 30);
+        float b = kd / dxmag;
+        pvec_t f = {
+            -(ks * (dxmag - 30) + kd * dv.x * dxnorm.x) * dxnorm.x,
+            -(ks * (dxmag - 30) + kd * dv.y * dxnorm.y) * dxnorm.y,
+        };
+        pvec_accum(&sys->f[i], f);
+    }
 }
 
 
@@ -89,17 +75,16 @@ int
 main(void)
 {
     pconfig_t config = {
-        .boxh = sch,
-        .boxw = scw,
+        .box = (pvec_t){scw, sch},
         .cr = 0.5,
         .drag = DRAG,
-        .gravity = GRAVITY,
+        .gravity = (pvec_t){0.0, -GRAVITY},
         .invm = 1.0 / 10.0,
         .m = 10.0,
         .radius = 5,
     };
     pstate_t sys;
-    particles_init(&sys, config, 10);
+    particles_init(&sys, config, 20);
 
     particles_register_cb(&sys, mouse_coupling);
     // particles_register_cb(&sys, spring);

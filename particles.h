@@ -6,14 +6,13 @@
 #include "pvec.h"
 
 typedef struct {
-    float gravity; // system gravity (m/s^2)
+    pvec_t gravity; // system gravity (m/s^2)
+    pvec_t box; // simulation box
     float drag; // drag coefficient
     float radius; // particle radius
     float m; // mass (kg)
     float invm; // 1 / mass (1/kg)
     float cr; // restitution
-    float boxw; // simulation box width
-    float boxh; // simulation box height
 } pconfig_t;
 
 typedef struct pstate_t pstate_t;

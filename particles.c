@@ -14,8 +14,8 @@
 
 static inline pvec_t pvec_rand(pvec_t range) {
     return (pvec_t) {
-        ((float)rand() / (float)RAND_MAX) * range.vec[0],
-        ((float)rand() / (float)RAND_MAX) * range.vec[1],
+        ((float)rand() / (float)RAND_MAX) * range.x,
+        ((float)rand() / (float)RAND_MAX) * range.y,
     };
 }
 
@@ -57,7 +57,7 @@ particles_init(pstate_t *psys, pconfig_t config, int count)
 
     // random positions
     for (size_t i = 0; i < psys->count; i++)
-        psys->x[i] = pvec_rand((pvec_t){config.boxw, config.boxh});
+        psys->x[i] = pvec_rand(config.box);
 }
 
 void
@@ -123,14 +123,13 @@ step(pstate_t *psys, float delta_time)
 void
 calculate_forces(pstate_t *psys)
 {
-    // gravity
-    for (size_t i = 0; i < psys->count; i++) {
-        psys->f[i].vec[1] += psys->config.gravity * psys->config.m;
-    }
-
-    // drag
+    // gravity f = m*a
     for (size_t i = 0; i < psys->count; i++)
-        pvec_accum(&psys->f[i], pvec_scale(psys->v[i], psys->config.drag));
+        pvec_accum(&psys->f[i], pvec_scale(psys->config.gravity, psys->config.m));
+
+    // drag f_d = -v*d
+    for (size_t i = 0; i < psys->count; i++)
+        pvec_accum(&psys->f[i], pvec_scale(psys->v[i], -psys->config.drag));
 
     // additional forces
     for (size_t i = 0; i < psys->callbacks.count; i++)
@@ -235,31 +234,31 @@ wall_collisions(pstate_t *sys)
         pvec_t *v = &sys->v[i];
 
         // left
-        if (x->vec[0] - sys->config.radius < 0.0) {
-            x->vec[0] = sys->config.radius;
-            if (v->vec[0] < 0.0)
-                v->vec[0] *= -sys->config.cr;
+        if (x->x - sys->config.radius < 0.0) {
+            x->x = sys->config.radius;
+            if (v->x < 0.0)
+                v->x *= -sys->config.cr;
         }
 
         // right
-        if (x->vec[0] + sys->config.radius > sys->config.boxw) {
-            x->vec[0] = sys->config.boxw - sys->config.radius;
-            if (v->vec[0] > 0.0)
-                v->vec[0] *= -sys->config.cr;
+        if (x->x + sys->config.radius > sys->config.box.x) {
+            x->x = sys->config.box.x - sys->config.radius;
+            if (v->x > 0.0)
+                v->x *= -sys->config.cr;
         }
 
         // down
-        if (x->vec[1] - sys->config.radius < 0.0) {
-            x->vec[1] = sys->config.radius;
-            if (v->vec[1] < 0.0)
-                v->vec[1] *= -sys->config.cr;
+        if (x->y - sys->config.radius < 0.0) {
+            x->y = sys->config.radius;
+            if (v->y < 0.0)
+                v->y *= -sys->config.cr;
         }
 
         // up
-        if (x->vec[1] + sys->config.radius > sys->config.boxh) {
-            x->vec[1] = sys->config.boxh - sys->config.radius;
-            if (v->vec[1] > 0.0)
-                v->vec[1] *= -sys->config.cr;
+        if (x->y + sys->config.radius > sys->config.box.y) {
+            x->y = sys->config.box.y - sys->config.radius;
+            if (v->y > 0.0)
+                v->y *= -sys->config.cr;
         }
     }
 }

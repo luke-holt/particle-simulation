@@ -9,7 +9,7 @@
 #define UTIL_IMPLEMENTATION
 #include "util.h"
 
-#define GRAVITY (-981.)
+#define GRAVITY 0.0 // (-981.)
 #define DRAG (0.10)
 
 const int fps = 60;
@@ -43,20 +43,14 @@ void spring(pstate_t *sys) {
     }
 }
 
-void mouse_coupling(pstate_t *sys) {
-    if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-        return;
-
-    Vector2 mouse_x = GetMousePosition();
-    Vector2 mouse_v = GetMouseDelta();
-
+void gravitate_to_center(pstate_t *sys) {
     for (size_t i = 0; i < sys->count; i++) {
-        pvec_t dx = pvec_sub(sys->x[i], *(pvec_t *)&mouse_x);
-        pvec_t dv = pvec_sub(sys->v[i], *(pvec_t *)&mouse_v);
+        pvec_t dx = pvec_sub(sys->x[i], (pvec_t){scw/2, sch/2});
+        pvec_t dv = pvec_sub(sys->v[i], (pvec_t){0, 0});
         pvec_t dxnorm = pvec_normalize(dx);
         float dxmag = pvec_mag(dx);
 
-        float ks = 20;
+        float ks = 10;
         float kd = 1;
 
         // -(ks * (dxmag - 30) + kd * dv * dx / dxmag) * dx / dxmag
@@ -84,17 +78,27 @@ main(void)
         .radius = 5,
     };
     pstate_t sys;
-    particles_init(&sys, config, 20);
+    particles_init(&sys, config, 100);
 
-    particles_register_cb(&sys, mouse_coupling);
+    particles_register_cb(&sys, gravitate_to_center);
     // particles_register_cb(&sys, spring);
 
     InitWindow(scw, sch, "physical-modelling-particles");
     SetTargetFPS(60);
 
+    double new_particle_timer = 0.0;
+
     while (!WindowShouldClose()) {
 
-        particles_step(&sys, delta_time);
+        double t = GetTime();
+        if (new_particle_timer < t) {
+            new_particle_timer = t + 0.25;
+            pvec_t x = { config.radius * 2, config.radius * 2 };
+            pvec_t v = { 0.0, 0.0 };
+            particles_add(&sys, x, v);
+        }
+
+        particles_step(&sys, GetFrameTime());
 
         BeginDrawing();
         ClearBackground(BLACK);

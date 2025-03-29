@@ -29,35 +29,31 @@ static void derivative(pstate_t *psys);
 static bool collisions(pstate_t *psys, float delta_time, int *p, int *q, float *coltime);
 static void handle_collision(pstate_t *psys, float coltime, int p, int q);
 static void step(pstate_t *psys, float delta_time);
-static void wall_collisions(pstate_t *sys);
 
 void
-particles_init(pstate_t *psys, pconfig_t config, int count)
+particles_init(pstate_t *psys, pconfig_t config, int capacity)
 {
     PASSERT(psys);
-    PASSERT(count);
+    PASSERT(capacity);
 
-    psys->count = count;
+    psys->capacity = capacity;
+    psys->count = 0;
     psys->config = config;
 
     // alloc buffers
-    psys->x = malloc(count*sizeof(*psys->x));
+    psys->x = malloc(capacity*sizeof(*psys->x));
     PASSERT(psys->x);
-    psys->v = malloc(count*sizeof(*psys->v));
+    psys->v = malloc(capacity*sizeof(*psys->v));
     PASSERT(psys->v);
-    psys->xdot = malloc(count*sizeof(*psys->xdot));
+    psys->xdot = malloc(capacity*sizeof(*psys->xdot));
     PASSERT(psys->xdot);
-    psys->vdot = malloc(count*sizeof(*psys->vdot));
+    psys->vdot = malloc(capacity*sizeof(*psys->vdot));
     PASSERT(psys->vdot);
-    psys->f = malloc(count*sizeof(*psys->f));
+    psys->f = malloc(capacity*sizeof(*psys->f));
     PASSERT(psys->f);
 
     da_init(&psys->callbacks);
     psys->time = 0.0;
-
-    // random positions
-    for (size_t i = 0; i < psys->count; i++)
-        psys->x[i] = pvec_rand(config.box);
 }
 
 void
@@ -83,11 +79,11 @@ void
 particles_step(pstate_t *psys, float delta_time)
 {
     // clear forces
-    memset(psys->f, 0, sizeof(*psys->f)*psys->count);
+    memset(psys->f, 0, sizeof(*psys->f)*psys->capacity);
 
     calculate_forces(psys);
 
-    wall_collisions(psys);
+    // wall_collisions(psys);
 
     derivative(psys);
 
@@ -218,11 +214,10 @@ handle_collision(pstate_t *psys, float coltime, int p, int q)
 
     // nudge particles apart if still colliding
     if (pcol(psys->config.radius*2, psys->x[q], psys->x[p])) {
-        pvec_t dx = pvec_sub(psys->x[q], psys->x[p]);
         pvec_t dxu = pvec_normalize(dx);
-        float delta = (psys->config.radius - pvec_mag(dx)) * 0.5;
-        pvec_accum(&psys->x[p], pvec_scale(dxu, delta));
-        pvec_accum(&psys->x[q], pvec_scale(dxu, -delta));
+        float delta = psys->config.radius - pvec_mag(dx);
+        pvec_accum(&psys->x[p], pvec_scale(dxu, -delta*0.25));
+        pvec_accum(&psys->x[q], pvec_scale(dxu, delta*0.25));
     }
 }
 
@@ -263,3 +258,16 @@ wall_collisions(pstate_t *sys)
     }
 }
 
+void
+particles_add(pstate_t *psys, pvec_t x, pvec_t v)
+{
+    if (psys->count >= psys->capacity)
+        return;
+
+    psys->x[psys->count] = x;
+    psys->v[psys->count] = v;
+    psys->xdot[psys->count] = (pvec_t){0};
+    psys->vdot[psys->count] = (pvec_t){0};
+    psys->f[psys->count] = (pvec_t){0};
+    psys->count++;
+}

@@ -30,6 +30,7 @@ struct pstate_t {
     float time; // simulation runtime
 
     int count; // particle count
+    int capacity; // system capacity
 
     pvec_t *x; // current state position
     pvec_t *v; // current state velocity
@@ -40,9 +41,10 @@ struct pstate_t {
     pcallbacklist_t callbacks;
 };
 
-void particles_init(pstate_t *psys, pconfig_t config, int count);
+void particles_init(pstate_t *psys, pconfig_t config, int capacity);
 void particles_delete(pstate_t *psys);
 void particles_step(pstate_t *psys, float delta_time);
 void particles_register_cb(pstate_t *psys, pcallback_t cb);
+void particles_add(pstate_t *psys, pvec_t x, pvec_t v);
 
 #endif // PARTICLES_H

@@ -88,10 +88,10 @@ void spring(void *ctx) {
             if (i == j) continue;
 
             float dx[2], dv[2], dxmag, f[2];
-            dx[0] = sys->statex[i].vec[0] - sys->statex[j].vec[0];
-            dx[1] = sys->statex[i].vec[1] - sys->statex[j].vec[1];
-            dv[0] = sys->statev[i].vec[0] - sys->statev[j].vec[0];
-            dv[1] = sys->statev[i].vec[1] - sys->statev[j].vec[1];
+            dx[0] = sys->x[i].vec[0] - sys->x[j].vec[0];
+            dx[1] = sys->x[i].vec[1] - sys->x[j].vec[1];
+            dv[0] = sys->v[i].vec[0] - sys->v[j].vec[0];
+            dv[1] = sys->v[i].vec[1] - sys->v[j].vec[1];
 
             dxmag = mag(as_vec2(dx));
             float ks = 1;
@@ -100,10 +100,10 @@ void spring(void *ctx) {
             f[0] = -(ks * (dxmag - 30) + kd * dv[0] * dx[0] / dxmag) * dx[0] / dxmag;
             f[1] = -(ks * (dxmag - 30) + kd * dv[1] * dx[1] / dxmag) * dx[1] / dxmag;
 
-            sys->force[i].vec[0] += f[0];
-            sys->force[i].vec[1] += f[1];
-            sys->force[j].vec[0] -= f[0];
-            sys->force[j].vec[1] -= f[1];
+            sys->f[i].vec[0] += f[0];
+            sys->f[i].vec[1] += f[1];
+            sys->f[j].vec[0] -= f[0];
+            sys->f[j].vec[1] -= f[1];
         }
     }
 }
@@ -118,10 +118,10 @@ void mouse_coupling(void *ctx) {
     Vector2 mouse_v = GetMouseDelta();
 
     float dx[2], dv[2], dxmag, f[2];
-    dx[0] = sys->statex[0].vec[0] - mouse_x.x;
-    dx[1] = sys->statex[0].vec[1] - mouse_x.y;
-    dv[0] = sys->statev[0].vec[0] - mouse_v.x;
-    dv[1] = sys->statev[0].vec[1] - mouse_v.y;
+    dx[0] = sys->x[0].vec[0] - mouse_x.x;
+    dx[1] = sys->x[0].vec[1] - mouse_x.y;
+    dv[0] = sys->v[0].vec[0] - mouse_v.x;
+    dv[1] = sys->v[0].vec[1] - mouse_v.y;
 
     dxmag = mag(as_vec2(dx));
 
@@ -131,8 +131,8 @@ void mouse_coupling(void *ctx) {
     f[0] = -(ks * (dxmag - 30) + kd * dv[0] * dx[0] / dxmag) * dx[0] / dxmag;
     f[1] = -(ks * (dxmag - 30) + kd * dv[1] * dx[1] / dxmag) * dx[1] / dxmag;
 
-    sys->force[0].vec[0] += f[0];
-    sys->force[0].vec[1] += f[1];
+    sys->f[0].vec[0] += f[0];
+    sys->f[0].vec[1] += f[1];
 }
 
 
@@ -170,15 +170,15 @@ main(void)
             for (size_t j = 0; j < sys.count; j++) {
                 if (i == j) continue;
                 DrawLineV(
-                    *(Vector2 *)&sys.statex[i],
-                    *(Vector2 *)&sys.statex[j],
+                    *(Vector2 *)&sys.x[i],
+                    *(Vector2 *)&sys.x[j],
                     (Color) {20, 20, 20, 255}
                 );
             }
         }
         for (size_t i = 0; i < sys.count; i++) {
             // DrawPixelV(*(Vector2 *)sys.particles.items[i].x, RAYWHITE);
-            DrawCircleV(*(Vector2 *)&sys.statex[i], sys.config.radius, RAYWHITE);
+            DrawCircleV(*(Vector2 *)&sys.x[i], sys.config.radius, RAYWHITE);
         }
 
         EndDrawing();

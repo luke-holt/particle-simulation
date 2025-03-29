@@ -24,10 +24,10 @@ struct pforcelist {
     psys_force_callback *items;
 };
 
-struct psysvec { float vec[DIMS]; };
+struct pvec { float vec[DIMS]; };
 struct pstatevec {
-    struct psysvec x;
-    struct psysvec v;
+    struct pvec x;
+    struct pvec v;
 };
 
 struct psys {
@@ -36,13 +36,13 @@ struct psys {
 
     int count; // particle count
 
-    struct psysvec *statex; // current state position
-    struct psysvec *statev; // current state velocity
-    struct psysvec *dstatex; // state position delta
-    struct psysvec *dstatev; // state velocity delta
-    struct psysvec *workx; // position work vector
-    struct psysvec *workv; // velocity work vector
-    struct psysvec *force; // particle force
+    struct pvec *x; // current state position
+    struct pvec *v; // current state velocity
+    struct pvec *xdot; // state position delta
+    struct pvec *vdot; // state velocity delta
+    struct pvec *workx; // position work vector
+    struct pvec *workv; // velocity work vector
+    struct pvec *f; // particle force
 
     struct pforcelist forcecallbacks;
 };

@@ -3,11 +3,13 @@
 
 #include "raylib.h"
 
+#define PASSERT UTIL_ASSERT
 #include "particles.h"
-#include "vec.h"
 
 #define UTIL_IMPLEMENTATION
 #include "util.h"
+
+#include "vec.h"
 
 /*
 
@@ -33,56 +35,21 @@ const float delta_time = 1.0 / fps;
 const int scw = 800;
 const int sch = 600;
 
-#if 0
 void wall_collisions(void *ctx) {
-    ParticleSystem *sys = (ParticleSystem *)ctx;
-    for (size_t i = 0; i < sys->particles.count; i++) {
-        Particle *p = &sys->particles.items[i];
-        if ((p->x[0] - sys->config.radius) <= 0.0 && p->v[0] < 0.0 ||
-            (p->x[0] + sys->config.radius) >= scw && p->v[0] > 0.0) {
-            p->v[0] *= -1.0 * sys->config.cr;
-        }
-        if ((p->x[1] - sys->config.radius) <= 0.0 && p->v[1] < 0.0 ||
-            (p->x[1] + sys->config.radius) >= sch && p->v[1] > 0.0) {
-            p->v[1] *= -1.0 * sys->config.cr;
-        }
-    }
-}
-
-void collisions(void *ctx) {
-    ParticleSystem *sys = (ParticleSystem *)ctx;
-    for (size_t i = 0; i < sys->particles.count; i++) {
-        for (size_t j = 0; j < sys->particles.count; j++) {
-            Particle *a = &sys->particles.items[i];
-            Particle *b = &sys->particles.items[j];
-
-            vec2 ax = as_vec2(a->x);
-            vec2 bx = as_vec2(b->x);
-            vec2 av = as_vec2(a->v);
-            vec2 bv = as_vec2(b->v);
-
-            // not colliding
-            if ((i == j) || mag(sub(ax, bx)) > sys->config.radius)
-                continue;
-
-            float e = sys->config.cr;
-
-            // velocity of center of mass (equal particle mass)
-            vec2 vcom = scale(add(av, bv), 0.5);
-            vec2 x = scale(vcom, (1 + e));
-
-            av = sub(x, scale(av, e));
-            bv = sub(x, scale(bv, e));
-
-            a->v[0] = av.x; a->v[1] = av.y;
-            b->v[0] = bv.x; b->v[1] = bv.y;
-        }
-    }
-}
-#endif
-
-void spring(void *ctx) {
     pstate_t *sys = (pstate_t *)ctx;
+    for (size_t i = 0; i < sys->count; i++) {
+        if ((sys->x[i].vec[0] - sys->config.radius) <= 0.0 && sys->v[i].vec[0] < 0.0 ||
+            (sys->x[i].vec[0] + sys->config.radius) >= scw && sys->v[i].vec[0] > 0.0) {
+            sys->v[i].vec[0] *= -1.0 * sys->config.cr;
+        }
+        if ((sys->x[i].vec[1] - sys->config.radius) <= 0.0 && sys->v[i].vec[1] < 0.0 ||
+            (sys->x[i].vec[1] + sys->config.radius) >= sch && sys->v[i].vec[1] > 0.0) {
+            sys->v[i].vec[1] *= -1.0 * sys->config.cr;
+        }
+    }
+}
+
+void spring(pstate_t *sys) {
     for (size_t i = 0; i < sys->count; i++) {
         for (size_t j = 0; j < sys->count; j++) {
             if (i == j) continue;
@@ -94,6 +61,7 @@ void spring(void *ctx) {
             dv[1] = sys->v[i].vec[1] - sys->v[j].vec[1];
 
             dxmag = mag(as_vec2(dx));
+
             float ks = 1;
             float kd = 1;
 
@@ -108,9 +76,7 @@ void spring(void *ctx) {
     }
 }
 
-void mouse_coupling(void *ctx) {
-    pstate_t *sys = (pstate_t *)ctx;
-
+void mouse_coupling(pstate_t *sys) {
     if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
         return;
 
@@ -150,18 +116,18 @@ main(void)
         .radius = 3.0,
     };
     pstate_t sys;
-    psys_init(&sys, config, 10);
+    particles_init(&sys, config, 10);
 
-    // da_append(&sys.forces, wall_collisions);
-    da_append(&sys.forcecallbacks, mouse_coupling);
-    da_append(&sys.forcecallbacks, spring);
+    // particles_register_cb(&sys, wall_collisions);
+    particles_register_cb(&sys, mouse_coupling);
+    particles_register_cb(&sys, spring);
 
     InitWindow(scw, sch, "physical-modelling-particles");
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
 
-        psys_step(&sys, delta_time);
+        particles_step(&sys, delta_time);
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -184,7 +150,7 @@ main(void)
         EndDrawing();
     }
 
-    psys_delete(&sys);
+    particles_delete(&sys);
 
     return 0;
 }

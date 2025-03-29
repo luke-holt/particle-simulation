@@ -8,36 +8,36 @@
 
 #include "util.h"
 
-#ifndef P2ASSERT
+#ifndef PASSERT
 #include <assert.h>
-#define P2ASSERT assert
+#define PASSERT assert
 #endif
 
-static void pvec_accum(pvec_t *accum, pvec_t vec) {
+static inline void pvec_accum(pvec_t *accum, pvec_t vec) {
     accum->vec[0] += vec.vec[0];
     accum->vec[1] += vec.vec[1];
 }
-static void pvec_accum_many(int count, pvec_t *accum, const pvec_t *vec) {
+static inline void pvec_accum_many(int count, pvec_t *accum, const pvec_t *vec) {
     while (count--) pvec_accum(accum++, *(vec++));
 }
-static pvec_t pvec_scale(pvec_t vec, float d) {
+static inline pvec_t pvec_scale(pvec_t vec, float d) {
     vec.vec[0] *= d;
     vec.vec[1] *= d;
     return vec;
 }
-static void pvec_scale_many(int count, pvec_t *out, pvec_t *in, float d) {
+static inline void pvec_scale_many(int count, pvec_t *out, pvec_t *in, float d) {
     while (count--) *(out++) = pvec_scale(*(in++), d);
 }
-static pvec_t pvec_rand(pvec_t range) {
+static inline pvec_t pvec_rand(pvec_t range) {
     return (pvec_t) {
         ((float)rand() / (float)RAND_MAX) * range.vec[0],
         ((float)rand() / (float)RAND_MAX) * range.vec[1],
     };
 }
-static pvec_t pvec_sub(pvec_t a, pvec_t b) {
+static inline pvec_t pvec_sub(pvec_t a, pvec_t b) {
     return (pvec_t){ a.vec[0]-b.vec[0], a.vec[1]-b.vec[1] };
 }
-static pvec_t pvec_add(pvec_t a, pvec_t b) {
+static inline pvec_t pvec_add(pvec_t a, pvec_t b) {
     return (pvec_t){ a.vec[0]+b.vec[0], a.vec[1]+b.vec[1] };
 }
 static inline float pvec_magsq(pvec_t v) {
@@ -49,9 +49,8 @@ static inline float pvec_mag(pvec_t v) {
 static inline pvec_t pvec_normalize(pvec_t v) {
     return pvec_scale(v, 1.0 / pvec_mag(v));
 }
-
 // particle collision
-static bool pcol(float r, pvec_t xa, pvec_t xb) {
+static inline bool pcol(float r, pvec_t xa, pvec_t xb) {
     return (r * r) > pvec_magsq(pvec_sub(xa, xb));
 }
 
@@ -60,33 +59,30 @@ static void derivative(pstate_t *psys);
 static bool collisions(pstate_t *psys, float delta_time, int *p, int *q, float *coltime);
 static void handle_collision(pstate_t *psys, float coltime, int p, int q);
 static void step(pstate_t *psys, float delta_time);
+static void wall_collisions(pstate_t *sys);
 
 void
-psys_init(pstate_t *psys, pconfig_t config, int count)
+particles_init(pstate_t *psys, pconfig_t config, int count)
 {
-    P2ASSERT(psys);
-    P2ASSERT(count);
+    PASSERT(psys);
+    PASSERT(count);
 
     psys->count = count;
     psys->config = config;
 
     // alloc buffers
     psys->x = malloc(count*sizeof(*psys->x));
-    P2ASSERT(psys->x);
+    PASSERT(psys->x);
     psys->v = malloc(count*sizeof(*psys->v));
-    P2ASSERT(psys->v);
-    psys->workx = malloc(count*sizeof(*psys->workx));
-    P2ASSERT(psys->workx);
-    psys->workv = malloc(count*sizeof(*psys->workv));
-    P2ASSERT(psys->workv);
+    PASSERT(psys->v);
     psys->xdot = malloc(count*sizeof(*psys->xdot));
-    P2ASSERT(psys->xdot);
+    PASSERT(psys->xdot);
     psys->vdot = malloc(count*sizeof(*psys->vdot));
-    P2ASSERT(psys->vdot);
+    PASSERT(psys->vdot);
     psys->f = malloc(count*sizeof(*psys->f));
-    P2ASSERT(psys->f);
+    PASSERT(psys->f);
 
-    da_init(&psys->forcecallbacks);
+    da_init(&psys->callbacks);
     psys->time = 0.0;
 
     // random positions
@@ -95,27 +91,33 @@ psys_init(pstate_t *psys, pconfig_t config, int count)
 }
 
 void
-psys_delete(pstate_t *psys)
+particles_register_cb(pstate_t *psys, pcallback_t cb)
 {
-    P2ASSERT(psys);
+    da_append(&psys->callbacks, cb);
+}
+
+void
+particles_delete(pstate_t *psys)
+{
+    PASSERT(psys);
     free(psys->x);
     free(psys->v);
     free(psys->xdot);
     free(psys->vdot);
-    free(psys->workx);
-    free(psys->workv);
     free(psys->f);
-    da_delete(&psys->forcecallbacks);
+    da_delete(&psys->callbacks);
     memset(psys, 0, sizeof(*psys));
 }
 
 void
-psys_step(pstate_t *psys, float delta_time)
+particles_step(pstate_t *psys, float delta_time)
 {
     // clear forces
     memset(psys->f, 0, sizeof(*psys->f)*psys->count);
 
     calculate_forces(psys);
+
+    wall_collisions(psys);
 
     derivative(psys);
 
@@ -161,8 +163,8 @@ calculate_forces(pstate_t *psys)
         pvec_accum(&psys->f[i], pvec_scale(psys->v[i], psys->config.drag));
 
     // additional forces
-    for (size_t i = 0; i < psys->forcecallbacks.count; i++)
-        psys->forcecallbacks.items[i](psys);
+    for (size_t i = 0; i < psys->callbacks.count; i++)
+        psys->callbacks.items[i](psys);
 }
 
 void
@@ -179,10 +181,10 @@ derivative(pstate_t *psys)
 bool
 collisions(pstate_t *psys, float delta_time, int *p, int *q, float *coltime)
 {
-    P2ASSERT(psys);
-    P2ASSERT(p);
-    P2ASSERT(q);
-    P2ASSERT(coltime);
+    PASSERT(psys);
+    PASSERT(p);
+    PASSERT(q);
+    PASSERT(coltime);
 
     *coltime = delta_time;
     bool c = false;
@@ -250,3 +252,19 @@ handle_collision(pstate_t *psys, float coltime, int p, int q)
         pvec_accum(&psys->x[q], pvec_scale(dxu, -delta));
     }
 }
+
+void
+wall_collisions(pstate_t *sys)
+{
+    for (size_t i = 0; i < sys->count; i++) {
+        if ((sys->x[i].vec[0] - sys->config.radius) <= 0.0 && sys->v[i].vec[0] < 0.0 ||
+            (sys->x[i].vec[0] + sys->config.radius) >= sys->config.boxw && sys->v[i].vec[0] > 0.0) {
+            sys->v[i].vec[0] *= -1.0 * sys->config.cr;
+        }
+        if ((sys->x[i].vec[1] - sys->config.radius) <= 0.0 && sys->v[i].vec[1] < 0.0 ||
+            (sys->x[i].vec[1] + sys->config.radius) >= sys->config.boxh && sys->v[i].vec[1] > 0.0) {
+            sys->v[i].vec[1] *= -1.0 * sys->config.cr;
+        }
+    }
+}
+

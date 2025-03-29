@@ -5,6 +5,8 @@
 
 #define DIMS (2)
 
+typedef struct { float vec[DIMS]; } pvec_t;
+
 typedef struct {
     float gravity; // system gravity (m/s^2)
     float drag; // drag coefficient
@@ -16,17 +18,17 @@ typedef struct {
     float boxh; // simulation box height
 } pconfig_t;
 
-typedef void (*pcallback_t)(void *ctx);
+typedef struct pstate_t pstate_t;
+
+typedef void (*pcallback_t)(pstate_t *state);
 
 typedef struct {
     size_t count;
     size_t capacity;
     pcallback_t *items;
-} pforcelist_t;
+} pcallbacklist_t;
 
-typedef struct { float vec[DIMS]; } pvec_t;
-
-typedef struct {
+struct pstate_t {
     pconfig_t config;
     float time; // simulation runtime
 
@@ -36,15 +38,14 @@ typedef struct {
     pvec_t *v; // current state velocity
     pvec_t *xdot; // state position delta
     pvec_t *vdot; // state velocity delta
-    pvec_t *workx; // position work vector
-    pvec_t *workv; // velocity work vector
     pvec_t *f; // particle force
 
-    pforcelist_t forcecallbacks;
-} pstate_t;
+    pcallbacklist_t callbacks;
+};
 
-void psys_init(pstate_t *psys, pconfig_t config, int count);
-void psys_delete(pstate_t *psys);
-void psys_step(pstate_t *psys, float delta_time);
+void particles_init(pstate_t *psys, pconfig_t config, int count);
+void particles_delete(pstate_t *psys);
+void particles_step(pstate_t *psys, float delta_time);
+void particles_register_cb(pstate_t *psys, pcallback_t cb);
 
 #endif // PARTICLES_H

@@ -55,10 +55,11 @@ static bool pcol(float r, struct pvec xa, struct pvec xb) {
     return (r * r) > pvec_magsq(pvec_sub(xa, xb));
 }
 
-static void calculate_forces2(struct psys *psys);
+static void calculate_forces(struct psys *psys);
 static void derivative(struct psys *psys);
-bool collisions(struct psys *psys, float delta_time, int *p, int *q, float *coltime);
-void handle_collision(struct psys *psys, float coltime, int p, int q);
+static bool collisions(struct psys *psys, float delta_time, int *p, int *q, float *coltime);
+static void handle_collision(struct psys *psys, float coltime, int p, int q);
+static void step(struct psys *psys, float delta_time);
 
 void
 psys_init(struct psys *psys, struct psysconfig config, int count)
@@ -114,23 +115,19 @@ psys_step(struct psys *psys, float delta_time)
     // clear forces
     memset(psys->f, 0, sizeof(*psys->f)*psys->count);
 
-    calculate_forces2(psys);
+    calculate_forces(psys);
 
     derivative(psys);
 
     // apply step
 
-    float duration = delta_time;
     float coltime;
     int p, q;
-    while (collisions(psys, duration, &p, &q, &coltime)) {
+    while (collisions(psys, delta_time, &p, &q, &coltime)) {
 
         // step until collision (x + xdot * coltime)
-        pvec_scale_many(psys->count, psys->workx, psys->xdot, coltime);
-        pvec_scale_many(psys->count, psys->workv, psys->vdot, coltime);
-        pvec_accum_many(psys->count, psys->x, psys->workx);
-        pvec_accum_many(psys->count, psys->v, psys->workv);
-        duration -= coltime;
+        step(psys, coltime);
+        delta_time -= coltime;
 
         handle_collision(psys, coltime, p, q);
 
@@ -138,24 +135,21 @@ psys_step(struct psys *psys, float delta_time)
     }
 
     // step the remainder
-    pvec_scale_many(psys->count, psys->workx, psys->xdot, duration);
-    pvec_scale_many(psys->count, psys->workv, psys->vdot, duration);
-    pvec_accum_many(psys->count, psys->x, psys->workx);
-    pvec_accum_many(psys->count, psys->v, psys->workv);
+    step(psys, delta_time);
+}
 
-    // scale derivative by timestep
-
-    // pvec_scale_many(psys->count, psys->workx, psys->xdot, delta_time);
-    // pvec_scale_many(psys->count, psys->workv, psys->vdot, delta_time);
-
-    // pvec_accum_many(psys->count, psys->x, psys->workx);
-    // pvec_accum_many(psys->count, psys->v, psys->workv);
-
+void
+step(struct psys *psys, float delta_time)
+{
+    for (int i = 0; i < psys->count; i++) {
+        pvec_accum(&psys->x[i], pvec_scale(psys->xdot[i], delta_time));
+        pvec_accum(&psys->v[i], pvec_scale(psys->vdot[i], delta_time));
+    }
     psys->time += delta_time;
 }
 
 void
-calculate_forces2(struct psys *psys)
+calculate_forces(struct psys *psys)
 {
     // gravity
     for (size_t i = 0; i < psys->count; i++) {

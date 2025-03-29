@@ -142,7 +142,7 @@ main(void)
     struct psysconfig config = {
         .boxh = sch,
         .boxw = scw,
-        .cr = 0.9,
+        .cr = 0.5,
         .drag = DRAG,
         .gravity = GRAVITY,
         .invm = 1.0 / 10.0,

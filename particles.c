@@ -13,56 +13,56 @@
 #define P2ASSERT assert
 #endif
 
-static void pvec_accum(struct pvec *accum, struct pvec vec) {
+static void pvec_accum(pvec_t *accum, pvec_t vec) {
     accum->vec[0] += vec.vec[0];
     accum->vec[1] += vec.vec[1];
 }
-static void pvec_accum_many(int count, struct pvec *accum, const struct pvec *vec) {
+static void pvec_accum_many(int count, pvec_t *accum, const pvec_t *vec) {
     while (count--) pvec_accum(accum++, *(vec++));
 }
-static struct pvec pvec_scale(struct pvec vec, float d) {
+static pvec_t pvec_scale(pvec_t vec, float d) {
     vec.vec[0] *= d;
     vec.vec[1] *= d;
     return vec;
 }
-static void pvec_scale_many(int count, struct pvec *out, struct pvec *in, float d) {
+static void pvec_scale_many(int count, pvec_t *out, pvec_t *in, float d) {
     while (count--) *(out++) = pvec_scale(*(in++), d);
 }
-static struct pvec pvec_rand(struct pvec range) {
-    return (struct pvec) {
+static pvec_t pvec_rand(pvec_t range) {
+    return (pvec_t) {
         ((float)rand() / (float)RAND_MAX) * range.vec[0],
         ((float)rand() / (float)RAND_MAX) * range.vec[1],
     };
 }
-static struct pvec pvec_sub(struct pvec a, struct pvec b) {
-    return (struct pvec){ a.vec[0]-b.vec[0], a.vec[1]-b.vec[1] };
+static pvec_t pvec_sub(pvec_t a, pvec_t b) {
+    return (pvec_t){ a.vec[0]-b.vec[0], a.vec[1]-b.vec[1] };
 }
-static struct pvec pvec_add(struct pvec a, struct pvec b) {
-    return (struct pvec){ a.vec[0]+b.vec[0], a.vec[1]+b.vec[1] };
+static pvec_t pvec_add(pvec_t a, pvec_t b) {
+    return (pvec_t){ a.vec[0]+b.vec[0], a.vec[1]+b.vec[1] };
 }
-static inline float pvec_magsq(struct pvec v) {
+static inline float pvec_magsq(pvec_t v) {
     return v.vec[0]*v.vec[0]+v.vec[1]*v.vec[1];
 }
-static inline float pvec_mag(struct pvec v) {
+static inline float pvec_mag(pvec_t v) {
     return sqrtf(pvec_magsq(v));
 }
-static inline struct pvec pvec_normalize(struct pvec v) {
+static inline pvec_t pvec_normalize(pvec_t v) {
     return pvec_scale(v, 1.0 / pvec_mag(v));
 }
 
 // particle collision
-static bool pcol(float r, struct pvec xa, struct pvec xb) {
+static bool pcol(float r, pvec_t xa, pvec_t xb) {
     return (r * r) > pvec_magsq(pvec_sub(xa, xb));
 }
 
-static void calculate_forces(struct psys *psys);
-static void derivative(struct psys *psys);
-static bool collisions(struct psys *psys, float delta_time, int *p, int *q, float *coltime);
-static void handle_collision(struct psys *psys, float coltime, int p, int q);
-static void step(struct psys *psys, float delta_time);
+static void calculate_forces(pstate_t *psys);
+static void derivative(pstate_t *psys);
+static bool collisions(pstate_t *psys, float delta_time, int *p, int *q, float *coltime);
+static void handle_collision(pstate_t *psys, float coltime, int p, int q);
+static void step(pstate_t *psys, float delta_time);
 
 void
-psys_init(struct psys *psys, struct psysconfig config, int count)
+psys_init(pstate_t *psys, pconfig_t config, int count)
 {
     P2ASSERT(psys);
     P2ASSERT(count);
@@ -91,11 +91,11 @@ psys_init(struct psys *psys, struct psysconfig config, int count)
 
     // random positions
     for (size_t i = 0; i < psys->count; i++)
-        psys->x[i] = pvec_rand((struct pvec){config.boxw, config.boxh});
+        psys->x[i] = pvec_rand((pvec_t){config.boxw, config.boxh});
 }
 
 void
-psys_delete(struct psys *psys)
+psys_delete(pstate_t *psys)
 {
     P2ASSERT(psys);
     free(psys->x);
@@ -110,7 +110,7 @@ psys_delete(struct psys *psys)
 }
 
 void
-psys_step(struct psys *psys, float delta_time)
+psys_step(pstate_t *psys, float delta_time)
 {
     // clear forces
     memset(psys->f, 0, sizeof(*psys->f)*psys->count);
@@ -139,7 +139,7 @@ psys_step(struct psys *psys, float delta_time)
 }
 
 void
-step(struct psys *psys, float delta_time)
+step(pstate_t *psys, float delta_time)
 {
     for (int i = 0; i < psys->count; i++) {
         pvec_accum(&psys->x[i], pvec_scale(psys->xdot[i], delta_time));
@@ -149,7 +149,7 @@ step(struct psys *psys, float delta_time)
 }
 
 void
-calculate_forces(struct psys *psys)
+calculate_forces(pstate_t *psys)
 {
     // gravity
     for (size_t i = 0; i < psys->count; i++) {
@@ -166,7 +166,7 @@ calculate_forces(struct psys *psys)
 }
 
 void
-derivative(struct psys *psys)
+derivative(pstate_t *psys)
 {
     for (size_t i = 0; i < psys->count; i++) {
         // xdot = v
@@ -177,7 +177,7 @@ derivative(struct psys *psys)
 }
 
 bool
-collisions(struct psys *psys, float delta_time, int *p, int *q, float *coltime)
+collisions(pstate_t *psys, float delta_time, int *p, int *q, float *coltime)
 {
     P2ASSERT(psys);
     P2ASSERT(p);
@@ -191,7 +191,7 @@ collisions(struct psys *psys, float delta_time, int *p, int *q, float *coltime)
             if (i == j)
                 continue;
 
-            struct pvec xi, xj;
+            pvec_t xi, xj;
             // x + xdot * dt
             xi = pvec_add(psys->x[i], pvec_scale(psys->xdot[i], delta_time));
             xj = pvec_add(psys->x[j], pvec_scale(psys->xdot[j], delta_time));
@@ -231,20 +231,20 @@ collisions(struct psys *psys, float delta_time, int *p, int *q, float *coltime)
 }
 
 void
-handle_collision(struct psys *psys, float coltime, int p, int q)
+handle_collision(pstate_t *psys, float coltime, int p, int q)
 {
     // v2 = (1 + e)vcom - ev1
     // vcom = (vq + vq) / 2 <- for equal mass
-    struct pvec vcom = pvec_scale(pvec_add(psys->v[p], psys->v[q]), 0.5 * (1 + psys->config.cr));
-    struct pvec evp = pvec_scale(psys->v[p], psys->config.cr);
-    struct pvec evq = pvec_scale(psys->v[q], psys->config.cr);
+    pvec_t vcom = pvec_scale(pvec_add(psys->v[p], psys->v[q]), 0.5 * (1 + psys->config.cr));
+    pvec_t evp = pvec_scale(psys->v[p], psys->config.cr);
+    pvec_t evq = pvec_scale(psys->v[q], psys->config.cr);
     psys->v[p] = pvec_sub(vcom, evp);
     psys->v[q] = pvec_sub(vcom, evq);
 
     // nudge particles apart if still colliding
     if (pcol(psys->config.radius*2, psys->x[q], psys->x[p])) {
-        struct pvec dx = pvec_sub(psys->x[q], psys->x[p]);
-        struct pvec dxu = pvec_normalize(dx);
+        pvec_t dx = pvec_sub(psys->x[q], psys->x[p]);
+        pvec_t dxu = pvec_normalize(dx);
         float delta = (psys->config.radius - pvec_mag(dx)) * 0.5;
         pvec_accum(&psys->x[p], pvec_scale(dxu, delta));
         pvec_accum(&psys->x[q], pvec_scale(dxu, -delta));

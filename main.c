@@ -82,7 +82,7 @@ void collisions(void *ctx) {
 #endif
 
 void spring(void *ctx) {
-    struct psys *sys = (struct psys *)ctx;
+    pstate_t *sys = (pstate_t *)ctx;
     for (size_t i = 0; i < sys->count; i++) {
         for (size_t j = 0; j < sys->count; j++) {
             if (i == j) continue;
@@ -109,7 +109,7 @@ void spring(void *ctx) {
 }
 
 void mouse_coupling(void *ctx) {
-    struct psys *sys = (struct psys *)ctx;
+    pstate_t *sys = (pstate_t *)ctx;
 
     if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
         return;
@@ -139,7 +139,7 @@ void mouse_coupling(void *ctx) {
 int
 main(void)
 {
-    struct psysconfig config = {
+    pconfig_t config = {
         .boxh = sch,
         .boxw = scw,
         .cr = 0.5,
@@ -149,7 +149,7 @@ main(void)
         .m = 10.0,
         .radius = 3.0,
     };
-    struct psys sys;
+    pstate_t sys;
     psys_init(&sys, config, 10);
 
     // da_append(&sys.forces, wall_collisions);

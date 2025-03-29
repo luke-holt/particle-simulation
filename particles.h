@@ -5,7 +5,7 @@
 
 #define DIMS (2)
 
-struct psysconfig {
+typedef struct {
     float gravity; // system gravity (m/s^2)
     float drag; // drag coefficient
     float radius; // particle radius
@@ -14,41 +14,37 @@ struct psysconfig {
     float cr; // restitution
     float boxw; // simulation box width
     float boxh; // simulation box height
-};
+} pconfig_t;
 
-typedef void (*psys_force_callback)(void *ctx);
+typedef void (*pcallback_t)(void *ctx);
 
-struct pforcelist {
+typedef struct {
     size_t count;
     size_t capacity;
-    psys_force_callback *items;
-};
+    pcallback_t *items;
+} pforcelist_t;
 
-struct pvec { float vec[DIMS]; };
-struct pstatevec {
-    struct pvec x;
-    struct pvec v;
-};
+typedef struct { float vec[DIMS]; } pvec_t;
 
-struct psys {
-    struct psysconfig config;
+typedef struct {
+    pconfig_t config;
     float time; // simulation runtime
 
     int count; // particle count
 
-    struct pvec *x; // current state position
-    struct pvec *v; // current state velocity
-    struct pvec *xdot; // state position delta
-    struct pvec *vdot; // state velocity delta
-    struct pvec *workx; // position work vector
-    struct pvec *workv; // velocity work vector
-    struct pvec *f; // particle force
+    pvec_t *x; // current state position
+    pvec_t *v; // current state velocity
+    pvec_t *xdot; // state position delta
+    pvec_t *vdot; // state velocity delta
+    pvec_t *workx; // position work vector
+    pvec_t *workv; // velocity work vector
+    pvec_t *f; // particle force
 
-    struct pforcelist forcecallbacks;
-};
+    pforcelist_t forcecallbacks;
+} pstate_t;
 
-void psys_init(struct psys *psys, struct psysconfig config, int count);
-void psys_delete(struct psys *psys);
-void psys_step(struct psys *psys, float delta_time);
+void psys_init(pstate_t *psys, pconfig_t config, int count);
+void psys_delete(pstate_t *psys);
+void psys_step(pstate_t *psys, float delta_time);
 
 #endif // PARTICLES_H

@@ -231,13 +231,35 @@ void
 wall_collisions(pstate_t *sys)
 {
     for (size_t i = 0; i < sys->count; i++) {
-        if ((sys->x[i].vec[0] - sys->config.radius) <= 0.0 && sys->v[i].vec[0] < 0.0 ||
-            (sys->x[i].vec[0] + sys->config.radius) >= sys->config.boxw && sys->v[i].vec[0] > 0.0) {
-            sys->v[i].vec[0] *= -1.0 * sys->config.cr;
+        pvec_t *x = &sys->x[i];
+        pvec_t *v = &sys->v[i];
+
+        // left
+        if (x->vec[0] - sys->config.radius < 0.0) {
+            x->vec[0] = sys->config.radius;
+            if (v->vec[0] < 0.0)
+                v->vec[0] *= -sys->config.cr;
         }
-        if ((sys->x[i].vec[1] - sys->config.radius) <= 0.0 && sys->v[i].vec[1] < 0.0 ||
-            (sys->x[i].vec[1] + sys->config.radius) >= sys->config.boxh && sys->v[i].vec[1] > 0.0) {
-            sys->v[i].vec[1] *= -1.0 * sys->config.cr;
+
+        // right
+        if (x->vec[0] + sys->config.radius > sys->config.boxw) {
+            x->vec[0] = sys->config.boxw - sys->config.radius;
+            if (v->vec[0] > 0.0)
+                v->vec[0] *= -sys->config.cr;
+        }
+
+        // down
+        if (x->vec[1] - sys->config.radius < 0.0) {
+            x->vec[1] = sys->config.radius;
+            if (v->vec[1] < 0.0)
+                v->vec[1] *= -sys->config.cr;
+        }
+
+        // up
+        if (x->vec[1] + sys->config.radius > sys->config.boxh) {
+            x->vec[1] = sys->config.boxh - sys->config.radius;
+            if (v->vec[1] > 0.0)
+                v->vec[1] *= -sys->config.cr;
         }
     }
 }
